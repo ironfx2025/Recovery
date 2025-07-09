@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Iron FX Web Trader - Demo</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    body { font-family: Arial, sans-serif; background: #181c23; color: #f3f3f3; margin: 0; }
+    .center { max-width: 400px; margin: 40px auto; background: #232a34; border-radius: 8px; padding: 30px; box-shadow: 0 2px 20px #0005; }
+    h1 { text-align: center; color: #e7b441; }
+    label { display: block; margin-top: 15px; }
+    input, select { width: 100%; padding: 8px; margin-top: 5px; background: #181c23; color: #f3f3f3; border: 1px solid #444; border-radius: 4px;}
+    button { margin: 20px 0 0 0; width: 100%; padding: 12px; background: #e7b441; color: #232a34; border: none; border-radius: 4px; font-size: 1.1em; cursor: pointer; }
+    .balance { font-size: 1.5em; text-align: center; margin: 24px 0 12px 0; }
+    .logout { background: #af2121; color: #fff; margin-top: 10px;}
+    .success { color: #4caf50; margin-top: 10px; text-align: center;}
+    .error { color: #e33; margin-top: 10px; text-align: center;}
+    .user { text-align: center; margin-bottom: 10px; font-weight: bold; }
+  </style>
+</head>
+<body>
+  <div class="center" id="login-view">
+    <h1>Iron FX</h1>
+    <form id="login-form">
+      <label for="user">Usuario</label>
+      <input type="text" id="user" required autocomplete="username">
+      <label for="pass">Contraseña</label>
+      <input type="password" id="pass" required autocomplete="current-password">
+      <button type="submit">Ingresar</button>
+    </form>
+  </div>
+
+  <div class="center" id="trader-view" style="display:none;">
+    <div class="user" id="welcome"></div>
+    <div class="balance">Balance: <span id="balance">--</span> USD</div>
+    <button id="withdraw-btn">Retirar fondos</button>
+    <button class="logout" id="logout-btn">Salir</button>
+    <div id="withdraw-form" style="display:none; margin-top:15px;">
+      <form id="form-withdraw">
+        <label for="amount">Monto a retirar (USD)</label>
+        <input type="number" id="amount" min="1" max="19750" required>
+        <label for="method">Método de retiro</label>
+        <select id="method" required>
+          <option value="">Seleccione uno</option>
+          <option value="tarjeta">Tarjeta de crédito/débito</option>
+          <option value="btc">Criptomoneda (BTC)</option>
+          <option value="eth">Criptomoneda (ETH)</option>
+          <option value="usdt">Criptomoneda (USDT)</option>
+        </select>
+        <div id="method-fields"></div>
+        <button type="submit">Solicitar retiro</button>
+      </form>
+      <div class="success" id="withdraw-success" style="display:none;"></div>
+      <div class="error" id="withdraw-error" style="display:none;"></div>
+    </div>
+  </div>
+
+<script>
+  // Estado temporal en el navegador
+  let account = {
+    user: '',
+    balance: 19750
+  };
+
+  // Mostrar campos según método
+  function updateMethodFields() {
+    const method = document.getElementById('method').value;
+    const container = document.getElementById('method-fields');
+    container.innerHTML = '';
+    if (method === 'tarjeta') {
+      container.innerHTML = `
+        <label for="card">Número de tarjeta</label>
+        <input type="text" id="card" maxlength="19" pattern="\\d{16,19}" required>
+        <label for="name">Nombre del titular</label>
+        <input type="text" id="name" required>
+      `;
+    } else if (method === 'btc' || method === 'eth' || method === 'usdt') {
+      container.innerHTML = `
+        <label for="wallet">Dirección de la billetera (${method.toUpperCase()})</label>
+        <input type="text" id="wallet" required>
+      `;
+    }
+  }
+
+  // Login
+  document.getElementById('login-form').onsubmit = function(e) {
+    e.preventDefault();
+    account.user = document.getElementById('user').value.trim() || 'Cliente';
+    account.balance = 19750;
+    document.getElementById('balance').textContent = account.balance.toLocaleString();
+    document.getElementById('welcome').textContent = 'Bienvenido, ' + account.user;
+    document.getElementById('login-view').style.display = 'none';
+    document.getElementById('trader-view').style.display = '';
+    document.getElementById('withdraw-form').style.display = 'none';
+    document.getElementById('withdraw-success').style.display = 'none';
+    document.getElementById('withdraw-error').style.display = 'none';
+  };
+
+  // Logout
+  document.getElementById('logout-btn').onclick = function() {
+    document.getElementById('trader-view').style.display = 'none';
+    document.getElementById('login-view').style.display = '';
+    document.getElementById('login-form').reset();
+  };
+
+  // Abrir formulario de retiro
+  document.getElementById('withdraw-btn').onclick = function() {
+    document.getElementById('withdraw-form').style.display = '';
+    document.getElementById('withdraw-success').style.display = 'none';
+    document.getElementById('withdraw-error').style.display = 'none';
+    document.getElementById('form-withdraw').reset();
+    updateMethodFields();
+  };
+
+  document.getElementById('method').onchange = updateMethodFields;
+
+  // Simular retiro
+  document.getElementById('form-withdraw').onsubmit = function(e) {
+    e.preventDefault();
+    const amount = parseFloat(document.getElementById('amount').value);
+    const method = document.getElementById('method').value;
+    let valid = true;
+
+    if (isNaN(amount) || amount < 1 || amount > account.balance) {
+      document.getElementById('withdraw-error').textContent = 'Monto inválido o insuficiente.';
+      document.getElementById('withdraw-error').style.display = '';
+      return;
+    }
+
+    // Validar campos extra según método
+    if (method === 'tarjeta') {
+      const card = document.getElementById('card').value;
+      const name = document.getElementById('name').value;
+      if (!card.match(/^\d{16,19}$/) || !name) valid = false;
+    } else if (method === 'btc' || method === 'eth' || method === 'usdt') {
+      const wallet = document.getElementById('wallet').value;
+      if (!wallet) valid = false;
+    } else {
+      valid = false;
+    }
+
+    if (!valid) {
+      document.getElementById('withdraw-error').textContent = 'Complete correctamente los datos del método de retiro.';
+      document.getElementById('withdraw-error').style.display = '';
+      return;
+    }
+
+    account.balance -= amount;
+    document.getElementById('balance').textContent = account.balance.toLocaleString();
+    document.getElementById('withdraw-success').textContent = `¡Retiro de $${amount.toLocaleString()} solicitado!`;
+    document.getElementById('withdraw-success').style.display = '';
+    document.getElementById('withdraw-error').style.display = 'none';
+    setTimeout(() => {
+      document.getElementById('withdraw-form').style.display = 'none';
+      document.getElementById('withdraw-success').style.display = 'none';
+    }, 3000);
+  };
+</script>
+</body>
+</html>
